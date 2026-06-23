@@ -196,6 +196,10 @@
           <input type="file" id="uploadInput" accept="image/*" multiple />
         </label>
         <div class="note-sm">Lần đầu tách nền sẽ tải mô hình AI (vài chục MB), có thể chậm tùy mạng. Các lần sau sẽ nhanh hơn vì trình duyệt đã lưu cache.</div>
+        <label style="display:flex;align-items:flex-start;gap:7px;margin-top:10px;font-size:12px;color:var(--text-dim);cursor:pointer;">
+          <input type="checkbox" id="useRemoveBgToggle" style="margin-top:2px;"/>
+          <span>Dùng remove.bg cho ảnh khó (trắng trên trắng…) — cần đã cấu hình REMOVEBG_API_KEY trên Vercel, mỗi ảnh sẽ tính phí/trừ credit remove.bg.</span>
+        </label>
         <div class="asset-grid" id="assetGrid" style="margin-top:10px;"></div>
       </section>
 
@@ -254,7 +258,8 @@ const state = {
   backgrounds: [],       // built-in + custom
   assets: [],            // ảnh đã tách nền {id,url,img,naturalW,naturalH,name}
   layers: [],            // ảnh đặt trên canvas {id,img,x,y,w,h,rotation}
-  selectedId: null
+  selectedId: null,
+  useRemoveBgApi: false  // true = tách nền qua remove.bg (proxy server), false = AI chạy local trong browser
 };
 
 const uid = () => 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -271,6 +276,7 @@ const els = {
   exportJpgBtn: document.getElementById('exportJpgBtn'),
   uploadZone: document.getElementById('uploadZone'),
   uploadInput: document.getElementById('uploadInput'),
+  useRemoveBgToggle: document.getElementById('useRemoveBgToggle'),
   assetGrid: document.getElementById('assetGrid'),
   bgGrid: document.getElementById('bgGrid'),
   stageWrap: document.getElementById('stageWrap'),
@@ -448,30 +454,58 @@ function setBackground(bg){
 /* ============================================================
    UPLOAD ẢNH SẢN PHẨM + TÁCH NỀN
    ============================================================ */
+/* Gọi Vercel Serverless Function trung gian (/api/remove-bg) — chỉ hoạt động
+   sau khi đã deploy lên Vercel kèm file api/remove-bg.js + biến môi trường
+   REMOVEBG_API_KEY. Mở trực tiếp file:// sẽ không gọi được (không có server). */
+async function callRemoveBgApi(file){
+  const resp = await fetch('/api/remove-bg', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: file
+  });
+  if(!resp.ok){
+    let msg = resp.status;
+    try{ const j = await resp.json(); if(j.error) msg = j.error; }catch(_){}
+    throw new Error(String(msg));
+  }
+  return await resp.blob();
+}
+
+els.useRemoveBgToggle.addEventListener('change', (e)=>{ state.useRemoveBgApi = e.target.checked; });
+
 els.uploadInput.addEventListener('change', onUploadProductImages);
 async function onUploadProductImages(e){
   const files = Array.from(e.target.files || []);
   e.target.value = '';
-  let removeBg;
-  try{
-    removeBg = await getRemoveBackgroundFn();
-    if(typeof removeBg !== 'function') throw new Error('removeBackground không khả dụng');
-  }catch(err){
-    console.error('Không tải được thư viện tách nền:', err);
-    showToast('Không tải được thư viện tách nền (kiểm tra mạng). Thử lại sau.', 'error');
-    return;
+
+  let removeLocal = null;
+  if(!state.useRemoveBgApi){
+    try{
+      removeLocal = await getRemoveBackgroundFn();
+      if(typeof removeLocal !== 'function') throw new Error('removeBackground không khả dụng');
+    }catch(err){
+      console.error('Không tải được thư viện tách nền:', err);
+      showToast('Không tải được thư viện tách nền (kiểm tra mạng). Thử lại sau.', 'error');
+      return;
+    }
   }
-  // Xử lý tuần tự (for...of) để không làm quá tải máy khi tách nền nhiều ảnh cùng lúc
+
+  // Xử lý tuần tự (for...of) để không làm quá tải máy/API khi tách nền nhiều ảnh cùng lúc
   for(const file of files){
     const cardId = uid();
     renderAssetLoadingCard(cardId, file);
     try{
       const previewUrl = URL.createObjectURL(file);
-      const resultBlob = await removeBg(file, {
-        model: 'isnet',                  // model lớn/chính xác nhất — ưu tiên chất lượng cho ảnh tương phản thấp (trắng trên trắng)
-        device: 'gpu',                   // tự dùng WebGPU nếu máy hỗ trợ, không thì tự rơi về CPU
-        progress: (key, current, total) => updateLoadingProgress(cardId, key, current, total)
-      });
+      let resultBlob;
+      if(state.useRemoveBgApi){
+        resultBlob = await callRemoveBgApi(file);
+      }else{
+        resultBlob = await removeLocal(file, {
+          model: 'isnet',                  // model lớn/chính xác nhất — ưu tiên chất lượng cho ảnh tương phản thấp (trắng trên trắng)
+          device: 'gpu',                   // tự dùng WebGPU nếu máy hỗ trợ, không thì tự rơi về CPU
+          progress: (key, current, total) => updateLoadingProgress(cardId, key, current, total)
+        });
+      }
       const resultUrl = URL.createObjectURL(resultBlob);
       const img = await loadImage(resultUrl);
       const asset = {
@@ -484,7 +518,7 @@ async function onUploadProductImages(e){
       URL.revokeObjectURL(previewUrl);
     }catch(err){
       console.error('Lỗi tách nền:', err);
-      showToast('Tách nền lỗi cho ảnh "'+file.name+'". Thử ảnh khác hoặc kiểm tra mạng.', 'error');
+      showToast('Tách nền lỗi cho ảnh "'+file.name+'": '+(err.message||err), 'error');
       removeAssetCard(cardId);
     }
   }
