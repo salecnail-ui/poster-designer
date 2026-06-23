@@ -468,10 +468,9 @@ async function onUploadProductImages(e){
     try{
       const previewUrl = URL.createObjectURL(file);
       const resultBlob = await removeBg(file, {
+        model: 'isnet',                  // model lớn/chính xác nhất — ưu tiên chất lượng cho ảnh tương phản thấp (trắng trên trắng)
         device: 'gpu',                   // tự dùng WebGPU nếu máy hỗ trợ, không thì tự rơi về CPU
         progress: (key, current, total) => updateLoadingProgress(cardId, key, current, total)
-        // Lưu ý: không ép model nhẹ (isnet_quint8) nữa vì gây sót nền/artifacts trên 1 số ảnh.
-        // Dùng model mặc định (isnet_fp16) để tách nền chính xác hơn, ưu tiên chất lượng.
       });
       const resultUrl = URL.createObjectURL(resultBlob);
       const img = await loadImage(resultUrl);
