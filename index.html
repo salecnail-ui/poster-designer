@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Trình Ghép Poster — Tách Nền Tự Động</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#14161b;
+    --panel:#1b1e25;
+    --panel-soft:#20242c;
+    --border:#2a2f3a;
+    --text:#e9e7e2;
+    --text-dim:#9aa0ad;
+    --accent:#d9a544;
+    --accent-soft:#3a2f1c;
+    --accent-2:#3fb8af;
+    --danger:#e2604f;
+    --radius:10px;
+    --sans:'Inter',-apple-system,'Segoe UI',sans-serif;
+    --mono:'JetBrains Mono',Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg-deep);color:var(--text);font-family:var(--sans);}
+  #app{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;white-space:nowrap;}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
+  .topbar .sep{width:1px;height:24px;background:var(--border);}
+  .field-group{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);}
+  select,input[type=number],input[type=text]{
+    background:var(--panel-soft);color:var(--text);border:1px solid var(--border);
+    border-radius:7px;padding:6px 8px;font-size:13px;font-family:var(--mono);
+  }
+  select{font-family:var(--sans);}
+  input[type=number]{width:72px;}
+  .btn{
+    border:1px solid var(--border);background:var(--panel-soft);color:var(--text);
+    border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:var(--sans);
+    display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:filter .12s;
+  }
+  .btn:hover{filter:brightness(1.15);}
+  .btn:active{filter:brightness(.92);}
+  .btn-accent{background:var(--accent);color:#1a1306;border-color:var(--accent);font-weight:600;}
+  .btn-ghost{background:transparent;}
+  .btn-danger{color:var(--danger);border-color:#4a2d28;}
+  .btn-sm{padding:5px 9px;font-size:12px;}
+  .topbar .exports{margin-left:auto;display:flex;gap:8px;}
+
+  /* ---------- Workspace ---------- */
+  .workspace{flex:1;display:flex;min-height:0;}
+  .panel{
+    width:268px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);
+    overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:18px;
+  }
+  .panel-right{border-right:none;border-left:1px solid var(--border);}
+  .panel h3{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);margin:0 0 10px;font-weight:600;}
+  .hint{font-size:12px;color:var(--text-dim);line-height:1.5;background:var(--panel-soft);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;}
+  .hint b{color:var(--text);}
+
+  .upload-zone{
+    border:1.5px dashed var(--border);border-radius:var(--radius);padding:18px 10px;
+    text-align:center;cursor:pointer;color:var(--text-dim);font-size:13px;transition:.15s;
+  }
+  .upload-zone:hover{border-color:var(--accent);color:var(--text);}
+  .upload-zone input{display:none;}
+  .note-sm{font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5;}
+
+  .asset-grid,.bg-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .asset-card,.bg-card{
+    position:relative;border-radius:8px;overflow:hidden;border:2px solid var(--border);
+    aspect-ratio:1/1;cursor:pointer;background:var(--panel-soft);
+  }
+  .asset-card.checker{
+    background-image:linear-gradient(45deg,#333843 25%,transparent 25%),linear-gradient(-45deg,#333843 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#333843 75%),linear-gradient(-45deg,transparent 75%,#333843 75%);
+    background-size:14px 14px;background-position:0 0,0 7px,7px -7px,-7px 0;background-color:#272b33;
+  }
+  .asset-card img,.bg-card img{width:100%;height:100%;object-fit:contain;display:block;}
+  .bg-card img{object-fit:cover;}
+  .bg-card.selected,.asset-card.selected{border-color:var(--accent);}
+  .asset-card .spinner-wrap,.asset-card .fail-wrap{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(20,22,27,.78);font-size:10px;color:var(--text-dim);gap:6px;text-align:center;padding:4px;
+  }
+  .spinner{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--accent);animation:spin .8s linear infinite;}
+  .progress-text{font-family:var(--mono);}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .bg-card .bg-name{
+    position:absolute;left:0;right:0;bottom:0;font-size:10px;padding:4px 6px;
+    background:linear-gradient(transparent,rgba(0,0,0,.7));color:#fff;line-height:1.2;
+  }
+  .add-bg-card{
+    aspect-ratio:1/1;border:1.5px dashed var(--border);border-radius:8px;display:flex;
+    align-items:center;justify-content:center;color:var(--text-dim);font-size:22px;cursor:pointer;
+  }
+  .add-bg-card:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* ---------- Stage area ---------- */
+  .stage-wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:30px;position:relative;background:
+    radial-gradient(ellipse at 50% 0%, #1c1f26 0%, var(--bg-deep) 70%);}
+  #stageOuter{box-shadow:0 30px 60px -20px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04);border-radius:2px;}
+  #stage{
+    position:relative;transform-origin:top left;background:#ddd;overflow:visible;
+  }
+  #bgLayer{position:absolute;inset:0;overflow:hidden;background:#e6e6e6;}
+  #bgLayer img{width:100%;height:100%;object-fit:cover;display:block;}
+  .empty-stage-hint{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#8a8a8a;font-size:18px;text-align:center;padding:20px;font-weight:500;pointer-events:none;
+  }
+  .layer{position:absolute;touch-action:none;user-select:none;cursor:move;}
+  .layer img{width:100%;height:100%;display:block;pointer-events:none;-webkit-user-drag:none;}
+  .selection-box{position:absolute;border:1.5px dashed var(--accent);pointer-events:none;}
+  .handle{
+    position:absolute;width:26px;height:26px;margin:-13px;border-radius:50%;
+    pointer-events:auto;touch-action:none;display:flex;align-items:center;justify-content:center;
+  }
+  .handle::after{content:'';width:11px;height:11px;border-radius:50%;background:#fff;border:2px solid var(--accent);}
+  .handle.corner{cursor:nwse-resize;}
+  .handle.rotate{cursor:grab;}
+  .handle.rotate::after{background:var(--accent);border-color:#fff;}
+  .rotate-stick{position:absolute;width:1.5px;background:var(--accent);pointer-events:none;}
+
+  /* ---------- Properties panel ---------- */
+  .prop-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+  .prop-row label{font-size:12px;color:var(--text-dim);}
+  .prop-row input{width:84px;}
+  .prop-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .empty-props{font-size:13px;color:var(--text-dim);text-align:center;padding:30px 6px;line-height:1.6;}
+
+  /* ---------- Toast ---------- */
+  #toastWrap{position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column;gap:8px;z-index:999;}
+  .toast{
+    background:var(--panel-soft);border:1px solid var(--border);border-left:3px solid var(--accent);
+    color:var(--text);padding:10px 14px;border-radius:8px;font-size:13px;max-width:280px;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);animation:toastIn .18s ease-out;
+  }
+  .toast.warn{border-left-color:#e0b03f;}
+  .toast.error{border-left-color:var(--danger);}
+  @keyframes toastIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  @media (max-width:880px){
+    .workspace{flex-direction:column;overflow-y:auto;}
+    .panel{width:100%;border-right:none;border-bottom:1px solid var(--border);max-height:240px;}
+    .panel-right{order:3;}
+    .stage-wrap{order:2;padding:18px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> Trình Ghép Poster</div>
+    <div class="sep"></div>
+    <div class="field-group">
+      <label>Khổ:</label>
+      <select id="presetSelect">
+        <option value="square">Vuông 1080×1080 (Instagram/FB)</option>
+        <option value="story">Dọc 1080×1920 (Story)</option>
+        <option value="banner">Ngang 1920×1080 (Banner)</option>
+        <option value="fbcover">Ngang 1640×856 (Bìa Facebook)</option>
+        <option value="a4">Dọc A4 in ấn 2480×3508 (300dpi)</option>
+        <option value="custom">Tùy chỉnh…</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <input type="number" id="widthInput" min="200" max="6000" step="10" value="1080" title="Chiều rộng (px)" />
+      <span style="color:var(--text-dim)">×</span>
+      <input type="number" id="heightInput" min="200" max="6000" step="10" value="1080" title="Chiều cao (px)" />
+      <button class="btn btn-sm" id="applySizeBtn">Áp dụng</button>
+    </div>
+    <div class="exports">
+      <button class="btn" id="exportPngBtn">⬇ Tải PNG</button>
+      <button class="btn btn-accent" id="exportJpgBtn">⬇ Tải JPG</button>
+    </div>
+  </div>
+
+  <div class="workspace">
+
+    <aside class="panel panel-left">
+      <div class="hint"><b>Quy trình:</b> 1) Tải ảnh sản phẩm lên → tự tách nền · 2) Chọn nền có sẵn hoặc thêm nền riêng · 3) Bấm ảnh đã tách nền để đưa lên canvas, kéo/chỉnh ở phải · 4) Tải PNG/JPG về.</div>
+
+      <section>
+        <h3>1. Ảnh sản phẩm</h3>
+        <label class="upload-zone" id="uploadZone">
+          📤 Tải ảnh lên (có thể chọn nhiều ảnh)
+          <input type="file" id="uploadInput" accept="image/*" multiple />
+        </label>
+        <div class="note-sm">Lần đầu tách nền sẽ tải mô hình AI (vài chục MB), có thể chậm tùy mạng. Các lần sau sẽ nhanh hơn vì trình duyệt đã lưu cache.</div>
+        <div class="asset-grid" id="assetGrid" style="margin-top:10px;"></div>
+      </section>
+
+      <section>
+        <h3>2. Ảnh nền</h3>
+        <div class="bg-grid" id="bgGrid"></div>
+      </section>
+    </aside>
+
+    <main class="stage-wrap" id="stageWrap">
+      <div id="stageOuter">
+        <div id="stage">
+          <div id="bgLayer"><img id="bgLayerImg" alt="" /></div>
+          <div class="empty-stage-hint" id="emptyHint">Chọn 1 ảnh nền bên trái<br/>để bắt đầu</div>
+          <div id="layersContainer"></div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="panel panel-right">
+      <h3>Thuộc tính ảnh</h3>
+      <div id="propsBody"><div class="empty-props">Bấm chọn 1 ảnh trên canvas<br/>để chỉnh vị trí, kích thước, góc xoay.</div></div>
+    </aside>
+
+  </div>
+</div>
+
+<div id="toastWrap"></div>
+
+<script type="module">
+/* Lazy-load thư viện tách nền — chỉ tải khi người dùng upload ảnh lần đầu,
+   dùng endpoint /+esm của jsDelivr để bundle sẵn onnxruntime-web (tránh lỗi
+   "bare module specifier" khi chạy ESM thô trực tiếp trên browser). */
+let imglyLoadPromise = null;
+function getRemoveBackgroundFn(){
+  if(!imglyLoadPromise){
+    imglyLoadPromise = import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm')
+      .then(mod => mod.removeBackground || mod.default)
+      .catch(err => { imglyLoadPromise = null; throw err; });
+  }
+  return imglyLoadPromise;
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const PRESETS = {
+  square:[1080,1080], story:[1080,1920], banner:[1920,1080],
+  fbcover:[1640,856], a4:[2480,3508]
+};
+
+const state = {
+  canvasW: 1080, canvasH: 1080,
+  scale: 1,
+  background: null,     // {id,url,img,name}
+  backgrounds: [],       // built-in + custom
+  assets: [],            // ảnh đã tách nền {id,url,img,naturalW,naturalH,name}
+  layers: [],            // ảnh đặt trên canvas {id,img,x,y,w,h,rotation}
+  selectedId: null
+};
+
+const uid = () => 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+
+/* ============================================================
+   DOM refs
+   ============================================================ */
+const els = {
+  presetSelect: document.getElementById('presetSelect'),
+  widthInput: document.getElementById('widthInput'),
+  heightInput: document.getElementById('heightInput'),
+  applySizeBtn: document.getElementById('applySizeBtn'),
+  exportPngBtn: document.getElementById('exportPngBtn'),
+  exportJpgBtn: document.getElementById('exportJpgBtn'),
+  uploadZone: document.getElementById('uploadZone'),
+  uploadInput: document.getElementById('uploadInput'),
+  assetGrid: document.getElementById('assetGrid'),
+  bgGrid: document.getElementById('bgGrid'),
+  stageWrap: document.getElementById('stageWrap'),
+  stageOuter: document.getElementById('stageOuter'),
+  stage: document.getElementById('stage'),
+  bgLayerImg: document.getElementById('bgLayerImg'),
+  emptyHint: document.getElementById('emptyHint'),
+  layersContainer: document.getElementById('layersContainer'),
+  propsBody: document.getElementById('propsBody'),
+  toastWrap: document.getElementById('toastWrap'),
+};
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+function showToast(msg, type=''){
+  const div = document.createElement('div');
+  div.className = 'toast'+(type?' '+type:'');
+  div.textContent = msg;
+  els.toastWrap.appendChild(div);
+  setTimeout(()=>div.remove(), 4200);
+}
+
+/* ============================================================
+   STAGE SIZING
+   ============================================================ */
+function fitStage(){
+  const padAllow = 40;
+  const availW = els.stageWrap.clientWidth - padAllow;
+  const availH = els.stageWrap.clientHeight - padAllow;
+  const scale = Math.min(availW/state.canvasW, availH/state.canvasH, 1);
+  state.scale = scale > 0 ? scale : 1;
+  els.stage.style.width = state.canvasW+'px';
+  els.stage.style.height = state.canvasH+'px';
+  els.stage.style.transform = `scale(${state.scale})`;
+  els.stageOuter.style.width = (state.canvasW*state.scale)+'px';
+  els.stageOuter.style.height = (state.canvasH*state.scale)+'px';
+}
+let resizeTimer;
+window.addEventListener('resize', ()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(fitStage,120); });
+
+function applyCanvasSize(){
+  const w = Math.max(200, Math.min(6000, parseInt(els.widthInput.value,10)||1080));
+  const h = Math.max(200, Math.min(6000, parseInt(els.heightInput.value,10)||1080));
+  state.canvasW = w; state.canvasH = h;
+  fitStage();
+}
+els.applySizeBtn.addEventListener('click', applyCanvasSize);
+els.presetSelect.addEventListener('change', ()=>{
+  const v = els.presetSelect.value;
+  if(v !== 'custom' && PRESETS[v]){
+    els.widthInput.value = PRESETS[v][0];
+    els.heightInput.value = PRESETS[v][1];
+    applyCanvasSize();
+  }
+});
+
+/* ============================================================
+   COORDINATE HELPER
+   ============================================================ */
+function stagePoint(e){
+  const rect = els.stage.getBoundingClientRect();
+  return { x:(e.clientX-rect.left)/state.scale, y:(e.clientY-rect.top)/state.scale };
+}
+
+/* ============================================================
+   BACKGROUND GALLERY — bộ nền có sẵn (tự tạo, không vi phạm bản quyền)
+   ============================================================ */
+function svgGradient(colors, dir){
+  const dirs = {diag:[0,0,100,100], diag2:[0,100,100,0], horiz:[0,0,100,0], vert:[0,0,0,100]};
+  const [x1,y1,x2,y2] = dirs[dir] || dirs.diag;
+  const gid = 'g'+Math.random().toString(36).slice(2,8);
+  const stops = colors.map((c,i)=>`<stop offset="${(i/(colors.length-1)*100).toFixed(0)}%" stop-color="${c}"/>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="2000" viewBox="0 0 2000 2000">
+    <defs><linearGradient id="${gid}" x1="${x1}%" y1="${y1}%" x2="${x2}%" y2="${y2}%">${stops}</linearGradient></defs>
+    <rect width="2000" height="2000" fill="url(#${gid})"/></svg>`;
+}
+function svgStudio(){
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="2000" viewBox="0 0 2000 2000">
+    <defs><radialGradient id="rs" cx="50%" cy="40%" r="75%">
+      <stop offset="0%" stop-color="#ffffff"/><stop offset="65%" stop-color="#f2f2f2"/><stop offset="100%" stop-color="#d9d9d9"/>
+    </radialGradient></defs><rect width="2000" height="2000" fill="url(#rs)"/></svg>`;
+}
+function svgLuxury(){
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="2000" viewBox="0 0 2000 2000">
+    <defs><radialGradient id="lx" cx="50%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#3c311c"/><stop offset="45%" stop-color="#1b1916"/><stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient></defs><rect width="2000" height="2000" fill="url(#lx)"/></svg>`;
+}
+function svgMarble(){
+  let veins='';
+  for(let i=0;i<6;i++){
+    const y0 = 180+i*300+Math.random()*90;
+    const o = (0.12+Math.random()*0.14).toFixed(2);
+    const w = (2.5+Math.random()*4).toFixed(1);
+    veins += `<path d="M -100 ${y0} C 420 ${y0-160}, 880 ${y0+160}, 1380 ${y0-90} S 2100 ${y0+110}, 2100 ${y0}" stroke="#b9b6ae" stroke-width="${w}" fill="none" opacity="${o}"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="2000" viewBox="0 0 2000 2000">
+    <rect width="2000" height="2000" fill="#f1efea"/>${veins}</svg>`;
+}
+
+const BUILTIN_BACKGROUNDS = [
+  { name:'Hồng Pastel Sang Trọng', svg:svgGradient(['#ffd9e8','#ffb6c9','#f7e7ce'],'diag') },
+  { name:'Xanh Spa Dịu Nhẹ',       svg:svgGradient(['#d2f1ec','#8fd9c4','#3fb8af'],'diag2') },
+  { name:'Hoàng Hôn Ấm',           svg:svgGradient(['#ffd194','#f08a5d','#b83b5e'],'vert') },
+  { name:'Studio Trắng Sáng',      svg:svgStudio() },
+  { name:'Sang Trọng Đen Vàng',    svg:svgLuxury() },
+  { name:'Đá Marble Nhẹ',          svg:svgMarble() },
+];
+
+function loadImage(url){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    img.onload = ()=>resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function initBuiltinBackgrounds(){
+  for(const b of BUILTIN_BACKGROUNDS){
+    try{
+      const url = 'data:image/svg+xml;utf8,'+encodeURIComponent(b.svg);
+      const img = await loadImage(url);
+      const item = { id:uid(), name:b.name, url, img, builtin:true };
+      state.backgrounds.push(item);
+    }catch(err){ console.error('Lỗi tạo nền có sẵn:', err); }
+  }
+  renderBgGrid();
+  if(state.backgrounds.length){ setBackground(state.backgrounds[0]); }
+}
+
+function renderBgGrid(){
+  els.bgGrid.innerHTML = '';
+  for(const bg of state.backgrounds){
+    const card = document.createElement('div');
+    card.className = 'bg-card' + (state.background && state.background.id===bg.id ? ' selected':'');
+    card.innerHTML = `<img src="${bg.url}" alt=""/><div class="bg-name">${bg.name}</div>`;
+    card.addEventListener('click', ()=>setBackground(bg));
+    els.bgGrid.appendChild(card);
+  }
+  const addCard = document.createElement('label');
+  addCard.className = 'add-bg-card';
+  addCard.title = 'Thêm nền tùy chỉnh';
+  addCard.innerHTML = `+ <input type="file" accept="image/*" multiple style="display:none" id="addBgInput"/>`;
+  els.bgGrid.appendChild(addCard);
+  addCard.querySelector('input').addEventListener('change', onAddCustomBackground);
+}
+
+async function onAddCustomBackground(e){
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  for(const file of files){
+    try{
+      const url = URL.createObjectURL(file);
+      const img = await loadImage(url);
+      const item = { id:uid(), name:file.name, url, img, builtin:false };
+      state.backgrounds.push(item);
+      renderBgGrid();
+      setBackground(item);
+    }catch(err){
+      console.error(err);
+      showToast('Không đọc được ảnh nền: '+file.name, 'error');
+    }
+  }
+}
+
+function setBackground(bg){
+  state.background = bg;
+  els.bgLayerImg.src = bg.url;
+  els.emptyHint.style.display = 'none';
+  renderBgGrid();
+}
+
+/* ============================================================
+   UPLOAD ẢNH SẢN PHẨM + TÁCH NỀN
+   ============================================================ */
+els.uploadInput.addEventListener('change', onUploadProductImages);
+async function onUploadProductImages(e){
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  let removeBg;
+  try{
+    removeBg = await getRemoveBackgroundFn();
+    if(typeof removeBg !== 'function') throw new Error('removeBackground không khả dụng');
+  }catch(err){
+    console.error('Không tải được thư viện tách nền:', err);
+    showToast('Không tải được thư viện tách nền (kiểm tra mạng). Thử lại sau.', 'error');
+    return;
+  }
+  // Xử lý tuần tự (for...of) để không làm quá tải máy khi tách nền nhiều ảnh cùng lúc
+  for(const file of files){
+    const cardId = uid();
+    renderAssetLoadingCard(cardId, file);
+    try{
+      const previewUrl = URL.createObjectURL(file);
+      const resultBlob = await removeBg(file, {
+        model: 'isnet_quint8',          // model nhẹ/lượng tử hoá — chạy nhanh hơn rõ rệt khi không có multi-thread
+        device: 'gpu',                   // tự dùng WebGPU nếu máy hỗ trợ, không thì tự rơi về CPU
+        progress: (key, current, total) => updateLoadingProgress(cardId, key, current, total)
+      });
+      const resultUrl = URL.createObjectURL(resultBlob);
+      const img = await loadImage(resultUrl);
+      const asset = {
+        id: cardId, url: resultUrl, img,
+        naturalW: img.naturalWidth, naturalH: img.naturalHeight,
+        name: file.name
+      };
+      state.assets.push(asset);
+      renderAssetGrid();
+      URL.revokeObjectURL(previewUrl);
+    }catch(err){
+      console.error('Lỗi tách nền:', err);
+      showToast('Tách nền lỗi cho ảnh "'+file.name+'". Thử ảnh khác hoặc kiểm tra mạng.', 'error');
+      removeAssetCard(cardId);
+    }
+  }
+}
+
+const pendingCards = {};
+function renderAssetLoadingCard(id, file){
+  const card = document.createElement('div');
+  card.className = 'asset-card';
+  card.dataset.id = id;
+  const previewUrl = URL.createObjectURL(file);
+  card.innerHTML = `<img src="${previewUrl}" alt=""/><div class="spinner-wrap"><div class="spinner"></div><span class="progress-text">Đang tách nền…</span></div>`;
+  els.assetGrid.appendChild(card);
+  pendingCards[id] = card;
+}
+function updateLoadingProgress(id, key, current, total){
+  const card = pendingCards[id];
+  if(!card) return;
+  const txt = card.querySelector('.progress-text');
+  if(!txt) return;
+  if(total > 0){
+    const pct = Math.round((current/total)*100);
+    txt.textContent = (key && key.includes('fetch') ? 'Đang tải mô hình AI… ' : 'Đang xử lý… ') + pct + '%';
+  }
+}
+function removeAssetCard(id){
+  if(pendingCards[id]){ pendingCards[id].remove(); delete pendingCards[id]; }
+}
+
+function renderAssetGrid(){
+  // xoá các card loading đã hoàn tất, vẽ lại toàn bộ asset đã xong
+  for(const id in pendingCards){
+    if(state.assets.find(a=>a.id===id)){ pendingCards[id].remove(); delete pendingCards[id]; }
+  }
+  els.assetGrid.querySelectorAll('.asset-card[data-done]').forEach(c=>c.remove());
+  for(const asset of state.assets){
+    const card = document.createElement('div');
+    card.className = 'asset-card checker';
+    card.dataset.done = '1';
+    card.title = 'Bấm để thêm vào canvas — hoặc kéo thả lên canvas';
+    card.draggable = true;
+    card.innerHTML = `<img src="${asset.url}" alt=""/>`;
+    card.addEventListener('click', ()=> addLayerFromAsset(asset));
+    card.addEventListener('dragstart', (e)=>{ e.dataTransfer.setData('text/plain', asset.id); });
+    els.assetGrid.appendChild(card);
+  }
+}
+
+/* Cho phép kéo-thả ảnh từ panel lên canvas */
+els.stage.addEventListener('dragover', (e)=> e.preventDefault());
+els.stage.addEventListener('drop', (e)=>{
+  e.preventDefault();
+  const id = e.dataTransfer.getData('text/plain');
+  const asset = state.assets.find(a=>a.id===id);
+  if(asset){ addLayerFromAsset(asset, stagePoint(e)); }
+});
+
+/* ============================================================
+   LAYERS (ảnh đặt trên canvas)
+   ============================================================ */
+function addLayerFromAsset(asset, dropPoint){
+  const maxDim = Math.min(state.canvasW, state.canvasH) * 0.4;
+  const ratio = asset.naturalW / asset.naturalH;
+  let w,h;
+  if(ratio >= 1){ w = maxDim; h = maxDim/ratio; } else { h = maxDim; w = maxDim*ratio; }
+  const cx = dropPoint ? dropPoint.x : state.canvasW/2;
+  const cy = dropPoint ? dropPoint.y : state.canvasH/2;
+  const layer = { id:uid(), img:asset.img, w, h, x:cx-w/2, y:cy-h/2, rotation:0 };
+  state.layers.push(layer);
+  renderAllLayers();
+  selectLayer(layer.id);
+}
+
+function getLayer(id){ return state.layers.find(l=>l.id===id); }
+
+function renderAllLayers(){
+  els.layersContainer.innerHTML = '';
+  for(const layer of state.layers){
+    const el = document.createElement('div');
+    el.className = 'layer';
+    el.dataset.id = layer.id;
+    el.innerHTML = `<img src="${layer.img.src}" alt="" draggable="false"/>`;
+    el.addEventListener('pointerdown', (e)=> onLayerPointerDown(e, layer, el));
+    els.layersContainer.appendChild(el);
+    renderLayerStyle(layer, el);
+  }
+  renderSelectionOverlay();
+}
+function renderLayerStyle(layer, el){
+  el.style.left = layer.x+'px';
+  el.style.top = layer.y+'px';
+  el.style.width = layer.w+'px';
+  el.style.height = layer.h+'px';
+  el.style.transform = `rotate(${layer.rotation}deg)`;
+}
+function getLayerEl(id){ return els.layersContainer.querySelector(`.layer[data-id="${id}"]`); }
+function renderLayer(layer){ const el = getLayerEl(layer.id); if(el) renderLayerStyle(layer, el); }
+
+/* ---------- Chọn / bỏ chọn ảnh ---------- */
+function selectLayer(id){
+  state.selectedId = id;
+  renderSelectionOverlay();
+  renderPropsPanel();
+}
+els.stage.addEventListener('pointerdown', (e)=>{
+  if(e.target.closest('.layer') || e.target.closest('.handle')) return;
+  selectLayer(null);
+});
+
+/* ---------- Di chuyển (kéo) ---------- */
+function onLayerPointerDown(e, layer, el){
+  if(e.target.closest('.handle')) return;
+  selectLayer(layer.id);
+  const start = stagePoint(e);
+  const orig = { x:layer.x, y:layer.y };
+  try{ el.setPointerCapture(e.pointerId); }catch(_){}
+  function onMove(ev){
+    const p = stagePoint(ev);
+    layer.x = orig.x + (p.x-start.x);
+    layer.y = orig.y + (p.y-start.y);
+    renderLayer(layer);
+    updateSelectionOverlayPosition();
+  }
+  function onUp(){
+    try{ el.releasePointerCapture(e.pointerId); }catch(_){}
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+  }
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+  e.preventDefault();
+}
+
+/* ---------- Selection overlay (khung chọn + tay cầm resize/xoay) ---------- */
+let overlayEl = null;
+function renderSelectionOverlay(){
+  if(overlayEl){ overlayEl.remove(); overlayEl = null; }
+  const layer = getLayer(state.selectedId);
+  if(!layer) return;
+  overlayEl = document.createElement('div');
+  overlayEl.className = 'selection-box';
+  overlayEl.innerHTML = `
+    <div class="rotate-stick"></div>
+    <div class="handle rotate" data-h="rotate"></div>
+    <div class="handle corner" data-h="tl" style="left:0;top:0;"></div>
+    <div class="handle corner" data-h="tr" style="left:100%;top:0;"></div>
+    <div class="handle corner" data-h="bl" style="left:0;top:100%;"></div>
+    <div class="handle corner" data-h="br" style="left:100%;top:100%;"></div>
+  `;
+  els.stage.appendChild(overlayEl);
+  updateSelectionOverlayPosition();
+
+  overlayEl.querySelectorAll('.handle.corner').forEach(h=>{
+    h.addEventListener('pointerdown', (e)=> onResizePointerDown(e, layer, h));
+  });
+  overlayEl.querySelector('.handle.rotate').addEventListener('pointerdown', (e)=> onRotatePointerDown(e, layer, overlayEl.querySelector('.handle.rotate')));
+}
+function updateSelectionOverlayPosition(){
+  const layer = getLayer(state.selectedId);
+  if(!layer || !overlayEl) return;
+  overlayEl.style.left = layer.x+'px';
+  overlayEl.style.top = layer.y+'px';
+  overlayEl.style.width = layer.w+'px';
+  overlayEl.style.height = layer.h+'px';
+  overlayEl.style.transform = `rotate(${layer.rotation}deg)`;
+  const stick = overlayEl.querySelector('.rotate-stick');
+  if(stick){ stick.style.left='50%'; stick.style.top='-34px'; stick.style.height='34px'; }
+  const rot = overlayEl.querySelector('.handle.rotate');
+  if(rot){ rot.style.left='50%'; rot.style.top='-34px'; }
+}
+
+/* ---------- Resize (co giãn đều từ tâm, không méo tỉ lệ) ---------- */
+function onResizePointerDown(e, layer, handleEl){
+  e.stopPropagation(); e.preventDefault();
+  const startP = stagePoint(e);
+  const cx = layer.x + layer.w/2, cy = layer.y + layer.h/2;
+  const startDist = Math.hypot(startP.x-cx, startP.y-cy) || 1;
+  const orig = { w:layer.w, h:layer.h };
+  try{ handleEl.setPointerCapture(e.pointerId); }catch(_){}
+  function onMove(ev){
+    const p = stagePoint(ev);
+    const dist = Math.hypot(p.x-cx, p.y-cy);
+    const ratio = Math.max(0.08, dist/startDist);
+    layer.w = Math.max(16, orig.w*ratio);
+    layer.h = Math.max(16, orig.h*ratio);
+    layer.x = cx - layer.w/2;
+    layer.y = cy - layer.h/2;
+    renderLayer(layer);
+    updateSelectionOverlayPosition();
+    syncPropsInputs(layer);
+  }
+  function onUp(){
+    try{ handleEl.releasePointerCapture(e.pointerId); }catch(_){}
+    handleEl.removeEventListener('pointermove', onMove);
+    handleEl.removeEventListener('pointerup', onUp);
+  }
+  handleEl.addEventListener('pointermove', onMove);
+  handleEl.addEventListener('pointerup', onUp);
+}
+
+/* ---------- Xoay ---------- */
+function onRotatePointerDown(e, layer, handleEl){
+  e.stopPropagation(); e.preventDefault();
+  const cx = layer.x + layer.w/2, cy = layer.y + layer.h/2;
+  function angleAt(ev){ const p = stagePoint(ev); return Math.atan2(p.y-cy, p.x-cx)*180/Math.PI; }
+  const startAngle = angleAt(e);
+  const startRotation = layer.rotation;
+  try{ handleEl.setPointerCapture(e.pointerId); }catch(_){}
+  function onMove(ev){
+    const a = angleAt(ev);
+    layer.rotation = startRotation + (a - startAngle);
+    renderLayer(layer);
+    updateSelectionOverlayPosition();
+    syncPropsInputs(layer);
+  }
+  function onUp(){
+    try{ handleEl.releasePointerCapture(e.pointerId); }catch(_){}
+    handleEl.removeEventListener('pointermove', onMove);
+    handleEl.removeEventListener('pointerup', onUp);
+  }
+  handleEl.addEventListener('pointermove', onMove);
+  handleEl.addEventListener('pointerup', onUp);
+}
+
+/* ---------- Xoá bằng phím Delete/Backspace ---------- */
+document.addEventListener('keydown', (e)=>{
+  const tag = (e.target.tagName||'').toLowerCase();
+  if(tag==='input' || tag==='textarea' || tag==='select') return;
+  if((e.key==='Delete' || e.key==='Backspace') && state.selectedId){
+    deleteLayer(state.selectedId);
+  }
+});
+
+function deleteLayer(id){
+  state.layers = state.layers.filter(l=>l.id!==id);
+  if(state.selectedId===id) state.selectedId=null;
+  renderAllLayers();
+  renderPropsPanel();
+}
+function duplicateLayer(id){
+  const layer = getLayer(id);
+  if(!layer) return;
+  const copy = { ...layer, id:uid(), x:layer.x+20, y:layer.y+20 };
+  state.layers.push(copy);
+  renderAllLayers();
+  selectLayer(copy.id);
+}
+function bringToFront(id){
+  const idx = state.layers.findIndex(l=>l.id===id);
+  if(idx<0) return;
+  const [layer] = state.layers.splice(idx,1);
+  state.layers.push(layer);
+  renderAllLayers();
+  selectLayer(id);
+}
+function sendToBack(id){
+  const idx = state.layers.findIndex(l=>l.id===id);
+  if(idx<0) return;
+  const [layer] = state.layers.splice(idx,1);
+  state.layers.unshift(layer);
+  renderAllLayers();
+  selectLayer(id);
+}
+
+/* ============================================================
+   PROPERTIES PANEL (bên phải)
+   ============================================================ */
+function renderPropsPanel(){
+  const layer = getLayer(state.selectedId);
+  if(!layer){
+    els.propsBody.innerHTML = `<div class="empty-props">Bấm chọn 1 ảnh trên canvas<br/>để chỉnh vị trí, kích thước, góc xoay.</div>`;
+    return;
+  }
+  els.propsBody.innerHTML = `
+    <div class="prop-row"><label>X (px)</label><input type="number" id="propX" step="1"/></div>
+    <div class="prop-row"><label>Y (px)</label><input type="number" id="propY" step="1"/></div>
+    <div class="prop-row"><label>Rộng (px)</label><input type="number" id="propW" step="1"/></div>
+    <div class="prop-row"><label>Cao (px)</label><input type="number" id="propH" step="1"/></div>
+    <div class="prop-row"><label>Góc xoay (°)</label><input type="number" id="propR" step="1"/></div>
+    <div class="prop-actions">
+      <button class="btn btn-sm" id="btnCenter">Đặt giữa canvas</button>
+      <button class="btn btn-sm" id="btnDup">Nhân bản</button>
+      <button class="btn btn-sm" id="btnFront">Lên trên cùng</button>
+      <button class="btn btn-sm" id="btnBack">Xuống dưới cùng</button>
+      <button class="btn btn-sm btn-danger" id="btnDel">🗑 Xoá ảnh này</button>
+    </div>
+  `;
+  syncPropsInputs(layer);
+  const ratio = layer.w/layer.h;
+  document.getElementById('propX').addEventListener('input', e=>{ layer.x=parseFloat(e.target.value)||0; renderLayer(layer); updateSelectionOverlayPosition(); });
+  document.getElementById('propY').addEventListener('input', e=>{ layer.y=parseFloat(e.target.value)||0; renderLayer(layer); updateSelectionOverlayPosition(); });
+  document.getElementById('propW').addEventListener('input', e=>{
+    const w=Math.max(16,parseFloat(e.target.value)||layer.w);
+    const cx=layer.x+layer.w/2, cy=layer.y+layer.h/2;
+    layer.w=w; layer.h=w/ratio; layer.x=cx-layer.w/2; layer.y=cy-layer.h/2;
+    renderLayer(layer); updateSelectionOverlayPosition(); syncPropsInputs(layer);
+  });
+  document.getElementById('propH').addEventListener('input', e=>{
+    const h=Math.max(16,parseFloat(e.target.value)||layer.h);
+    const cx=layer.x+layer.w/2, cy=layer.y+layer.h/2;
+    layer.h=h; layer.w=h*ratio; layer.x=cx-layer.w/2; layer.y=cy-layer.h/2;
+    renderLayer(layer); updateSelectionOverlayPosition(); syncPropsInputs(layer);
+  });
+  document.getElementById('propR').addEventListener('input', e=>{ layer.rotation=parseFloat(e.target.value)||0; renderLayer(layer); updateSelectionOverlayPosition(); });
+  document.getElementById('btnCenter').addEventListener('click', ()=>{
+    layer.x = state.canvasW/2 - layer.w/2; layer.y = state.canvasH/2 - layer.h/2;
+    renderLayer(layer); updateSelectionOverlayPosition(); syncPropsInputs(layer);
+  });
+  document.getElementById('btnDup').addEventListener('click', ()=> duplicateLayer(layer.id));
+  document.getElementById('btnFront').addEventListener('click', ()=> bringToFront(layer.id));
+  document.getElementById('btnBack').addEventListener('click', ()=> sendToBack(layer.id));
+  document.getElementById('btnDel').addEventListener('click', ()=> deleteLayer(layer.id));
+}
+function syncPropsInputs(layer){
+  const x=document.getElementById('propX'), y=document.getElementById('propY');
+  const w=document.getElementById('propW'), h=document.getElementById('propH'), r=document.getElementById('propR');
+  if(!x) return;
+  x.value = Math.round(layer.x); y.value = Math.round(layer.y);
+  w.value = Math.round(layer.w); h.value = Math.round(layer.h);
+  r.value = Math.round(layer.rotation);
+}
+
+/* ============================================================
+   XUẤT FILE (PNG / JPG)
+   ============================================================ */
+function drawCover(ctx, img, dx, dy, dW, dH){
+  const ir = img.naturalWidth/img.naturalHeight;
+  const dr = dW/dH;
+  let sx,sy,sw,sh;
+  if(ir > dr){ sh = img.naturalHeight; sw = sh*dr; sx = (img.naturalWidth-sw)/2; sy = 0; }
+  else { sw = img.naturalWidth; sh = sw/dr; sx = 0; sy = (img.naturalHeight-sh)/2; }
+  ctx.drawImage(img, sx,sy,sw,sh, dx,dy,dW,dH);
+}
+
+function exportPoster(format){
+  try{
+    if(!state.background){ showToast('Hãy chọn 1 ảnh nền trước khi xuất file.', 'warn'); return; }
+    const canvas = document.createElement('canvas');
+    canvas.width = state.canvasW;
+    canvas.height = state.canvasH;
+    const ctx = canvas.getContext('2d');
+    if(format==='jpeg'){ ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height); }
+    drawCover(ctx, state.background.img, 0, 0, state.canvasW, state.canvasH);
+    for(const layer of state.layers){
+      ctx.save();
+      ctx.translate(layer.x+layer.w/2, layer.y+layer.h/2);
+      ctx.rotate(layer.rotation*Math.PI/180);
+      ctx.drawImage(layer.img, -layer.w/2, -layer.h/2, layer.w, layer.h);
+      ctx.restore();
+    }
+    const mime = format==='jpeg' ? 'image/jpeg' : 'image/png';
+    const url = canvas.toDataURL(mime, format==='jpeg' ? 0.92 : undefined);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `poster-${Date.now()}.${format==='jpeg'?'jpg':'png'}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    showToast('Đã xuất file '+(format==='jpeg'?'JPG':'PNG')+'.');
+  }catch(err){
+    console.error(err);
+    showToast('Xuất file lỗi, thử lại.', 'error');
+  }
+}
+els.exportPngBtn.addEventListener('click', ()=> exportPoster('png'));
+els.exportJpgBtn.addEventListener('click', ()=> exportPoster('jpeg'));
+
+/* ============================================================
+   INIT
+   ============================================================ */
+fitStage();
+initBuiltinBackgrounds();
+</script>
+</body>
+</html>
