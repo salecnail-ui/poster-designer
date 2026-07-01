@@ -241,11 +241,13 @@
   .layer-text{
     position:absolute;touch-action:none;user-select:none;cursor:move;
     display:flex;align-items:center;justify-content:center;
+    pointer-events:auto;
   }
   .layer-text .text-content{
-    white-space:pre;outline:none;cursor:text;line-height:1.2;
-    pointer-events:none;
+    white-space:pre;outline:none;cursor:inherit;line-height:1.2;
+    pointer-events:none;user-select:none;
   }
+  .layer-text.editing{ cursor:text; }
   .layer-text.editing .text-content{ pointer-events:auto;user-select:text;cursor:text; }
 
   /* ---------- Add Text panel ---------- */
@@ -908,7 +910,7 @@ function renderLayerStyle(layer, el){
     }
   }
 }
-function getLayerEl(id){ return els.layersContainer.querySelector(`.layer[data-id="${id}"]`); }
+function getLayerEl(id){ return els.layersContainer.querySelector(`.layer[data-id="${id}"], .layer-text[data-id="${id}"]`); }
 function renderLayer(layer){ const el = getLayerEl(layer.id); if(el) renderLayerStyle(layer, el); }
 
 /* ---------- Chọn / bỏ chọn ảnh ---------- */
@@ -918,7 +920,7 @@ function selectLayer(id){
   renderPropsPanel();
 }
 els.stage.addEventListener('pointerdown', (e)=>{
-  if(e.target.closest('.layer') || e.target.closest('.handle')) return;
+  if(e.target.closest('.layer') || e.target.closest('.layer-text') || e.target.closest('.handle')) return;
   selectLayer(null);
 });
 
