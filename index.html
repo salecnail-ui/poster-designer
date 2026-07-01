@@ -237,6 +237,53 @@
   .empty-props svg{width:26px;height:26px;color:#3a3f4a;}
   .prop-divider{height:1px;background:var(--border);margin:14px 0;}
 
+  /* ---------- Text layer ---------- */
+  .layer-text{
+    position:absolute;touch-action:none;user-select:none;cursor:move;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .layer-text .text-content{
+    white-space:pre;outline:none;cursor:text;line-height:1.2;
+    pointer-events:none;
+  }
+  .layer-text.editing .text-content{ pointer-events:auto;user-select:text;cursor:text; }
+
+  /* ---------- Add Text panel ---------- */
+  .text-panel-inner{ display:flex;flex-direction:column;gap:9px; }
+  .text-input-area{
+    width:100%;background:var(--panel-soft-2);border:1px solid var(--border);border-radius:var(--radius-sm);
+    color:var(--text);font-size:13px;font-family:var(--sans);padding:9px 10px;resize:vertical;min-height:64px;
+    transition:border-color .14s var(--ease),box-shadow .14s var(--ease);
+  }
+  .text-input-area:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .text-row{display:flex;gap:7px;align-items:center;}
+  .text-row label{font-size:11.5px;color:var(--text-faint);font-weight:500;flex-shrink:0;width:52px;}
+  .font-select{flex:1;font-family:var(--sans);}
+  input[type=color]{
+    width:32px;height:30px;padding:2px;border:1px solid var(--border);border-radius:6px;
+    background:var(--panel-soft-2);cursor:pointer;flex-shrink:0;
+  }
+  .toggle-row{display:flex;gap:6px;}
+  .toggle-btn{
+    flex:1;padding:6px;font-size:12px;font-weight:600;font-family:var(--sans);border:1px solid var(--border);
+    background:var(--panel-soft-2);color:var(--text-dim);border-radius:6px;cursor:pointer;
+    transition:background .12s,color .12s,border-color .12s;
+  }
+  .toggle-btn.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);}
+  .add-text-btn{
+    width:100%;padding:9px;font-size:13px;font-weight:600;font-family:var(--sans);
+    background:linear-gradient(180deg,var(--accent-hover),var(--accent));color:var(--accent-ink);
+    border:1px solid var(--accent);border-radius:var(--radius-sm);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    box-shadow:0 2px 10px rgba(224,173,85,.2);transition:filter .12s;
+  }
+  .add-text-btn:hover{filter:brightness(1.07);}
+  .add-text-btn:active{filter:brightness(.94);}
+
+  /* ---------- Props flip row ---------- */
+  .flip-row{display:flex;gap:7px;margin-bottom:9px;}
+  .flip-row .btn{flex:1;justify-content:center;}
+
   /* ---------- Toast ---------- */
   #toastWrap{position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column;gap:9px;z-index:999;}
   .toast{
@@ -327,6 +374,43 @@
         </h3>
         <div class="bg-grid" id="bgGrid"></div>
       </section>
+
+      <section>
+        <h3>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          Thêm chữ
+        </h3>
+        <div class="text-panel-inner">
+          <textarea class="text-input-area" id="textInput" placeholder="Nhập nội dung văn bản…"></textarea>
+          <div class="text-row">
+            <label>Font</label>
+            <select class="font-select" id="fontFamilySelect">
+              <option value="Inter, sans-serif">Inter (mặc định)</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+              <option value="'Georgia', serif">Georgia</option>
+              <option value="'Arial', sans-serif">Arial</option>
+              <option value="'Tahoma', sans-serif">Tahoma</option>
+              <option value="'Verdana', sans-serif">Verdana</option>
+              <option value="'Courier New', monospace">Courier New</option>
+              <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+            </select>
+          </div>
+          <div class="text-row">
+            <label>Cỡ chữ</label>
+            <input type="number" id="fontSizeInput" value="80" min="8" max="800" style="width:70px"/>
+            <label style="width:auto">px</label>
+            <input type="color" id="fontColorInput" value="#ffffff" title="Màu chữ"/>
+          </div>
+          <div class="toggle-row">
+            <button class="toggle-btn" id="btnBold"><b>B</b></button>
+            <button class="toggle-btn" id="btnItalic"><i>I</i></button>
+          </div>
+          <button class="add-text-btn" id="addTextBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Thêm chữ lên canvas
+          </button>
+        </div>
+      </section>
     </aside>
 
     <main class="stage-wrap" id="stageWrap">
@@ -415,6 +499,13 @@ const els = {
   useRemoveBgToggle: document.getElementById('useRemoveBgToggle'),
   assetGrid: document.getElementById('assetGrid'),
   bgGrid: document.getElementById('bgGrid'),
+  textInput: document.getElementById('textInput'),
+  fontFamilySelect: document.getElementById('fontFamilySelect'),
+  fontSizeInput: document.getElementById('fontSizeInput'),
+  fontColorInput: document.getElementById('fontColorInput'),
+  btnBold: document.getElementById('btnBold'),
+  btnItalic: document.getElementById('btnItalic'),
+  addTextBtn: document.getElementById('addTextBtn'),
   stageWrap: document.getElementById('stageWrap'),
   stageOuter: document.getElementById('stageOuter'),
   stage: document.getElementById('stage'),
@@ -743,7 +834,7 @@ function addLayerFromAsset(asset, dropPoint){
   if(ratio >= 1){ w = maxDim; h = maxDim/ratio; } else { h = maxDim; w = maxDim*ratio; }
   const cx = dropPoint ? dropPoint.x : state.canvasW/2;
   const cy = dropPoint ? dropPoint.y : state.canvasH/2;
-  const layer = { id:uid(), img:asset.img, w, h, x:cx-w/2, y:cy-h/2, rotation:0 };
+  const layer = { id:uid(), type:'image', img:asset.img, w, h, x:cx-w/2, y:cy-h/2, rotation:0, flipX:false, flipY:false };
   state.layers.push(layer);
   renderAllLayers();
   selectLayer(layer.id);
@@ -754,22 +845,68 @@ function getLayer(id){ return state.layers.find(l=>l.id===id); }
 function renderAllLayers(){
   els.layersContainer.innerHTML = '';
   for(const layer of state.layers){
-    const el = document.createElement('div');
-    el.className = 'layer';
-    el.dataset.id = layer.id;
-    el.innerHTML = `<img src="${layer.img.src}" alt="" draggable="false"/>`;
+    let el;
+    if(layer.type === 'text'){
+      el = document.createElement('div');
+      el.className = 'layer-text';
+      el.dataset.id = layer.id;
+      const span = document.createElement('div');
+      span.className = 'text-content';
+      span.textContent = layer.text;
+      el.appendChild(span);
+      /* double-click để edit trực tiếp */
+      el.addEventListener('dblclick', ()=>{
+        el.classList.add('editing');
+        span.contentEditable = 'true';
+        span.focus();
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        const finishEdit = ()=>{
+          layer.text = span.textContent;
+          el.classList.remove('editing');
+          span.contentEditable = 'false';
+          renderLayer(layer);
+          span.removeEventListener('blur', finishEdit);
+          span.removeEventListener('keydown', onKey);
+        };
+        const onKey = (ev)=>{ if(ev.key==='Escape'){ finishEdit(); } };
+        span.addEventListener('blur', finishEdit);
+        span.addEventListener('keydown', onKey);
+      });
+    } else {
+      el = document.createElement('div');
+      el.className = 'layer';
+      el.dataset.id = layer.id;
+      el.innerHTML = `<img src="${layer.img.src}" alt="" draggable="false"/>`;
+    }
     el.addEventListener('pointerdown', (e)=> onLayerPointerDown(e, layer, el));
     els.layersContainer.appendChild(el);
     renderLayerStyle(layer, el);
   }
   renderSelectionOverlay();
 }
+
 function renderLayerStyle(layer, el){
   el.style.left = layer.x+'px';
   el.style.top = layer.y+'px';
   el.style.width = layer.w+'px';
   el.style.height = layer.h+'px';
-  el.style.transform = `rotate(${layer.rotation}deg)`;
+  const flipX = layer.flipX ? -1 : 1;
+  const flipY = layer.flipY ? -1 : 1;
+  el.style.transform = `rotate(${layer.rotation}deg) scale(${flipX},${flipY})`;
+  if(layer.type === 'text'){
+    const span = el.querySelector('.text-content');
+    if(span){
+      span.style.fontFamily = layer.fontFamily;
+      span.style.fontSize = layer.fontSize+'px';
+      span.style.color = layer.color;
+      span.style.fontWeight = layer.bold ? '700' : '400';
+      span.style.fontStyle = layer.italic ? 'italic' : 'normal';
+      span.textContent = layer.text;
+    }
+  }
 }
 function getLayerEl(id){ return els.layersContainer.querySelector(`.layer[data-id="${id}"]`); }
 function renderLayer(layer){ const el = getLayerEl(layer.id); if(el) renderLayerStyle(layer, el); }
@@ -941,27 +1078,80 @@ function sendToBack(id){
 }
 
 /* ============================================================
+   TEXT LAYER
+   ============================================================ */
+const textState = { bold:false, italic:false };
+els.btnBold.addEventListener('click', ()=>{ textState.bold=!textState.bold; els.btnBold.classList.toggle('active', textState.bold); });
+els.btnItalic.addEventListener('click', ()=>{ textState.italic=!textState.italic; els.btnItalic.classList.toggle('active', textState.italic); });
+
+els.addTextBtn.addEventListener('click', ()=>{
+  const text = (els.textInput.value || '').trim();
+  if(!text){ showToast('Nhập nội dung văn bản trước.', 'warn'); return; }
+  const fontSize = Math.max(8, parseInt(els.fontSizeInput.value,10)||80);
+  const fontFamily = els.fontFamilySelect.value;
+  const color = els.fontColorInput.value;
+  /* Đo kích thước text thực sự trên 1 canvas ẩn */
+  const tmpCanvas = document.createElement('canvas');
+  const tmpCtx = tmpCanvas.getContext('2d');
+  tmpCtx.font = `${textState.italic?'italic ':''} ${textState.bold?'bold ':''} ${fontSize}px ${fontFamily}`;
+  const met = tmpCtx.measureText(text);
+  const w = Math.max(60, met.width + 8);
+  const h = fontSize * 1.35;
+  const layer = {
+    id: uid(), type:'text', text, fontFamily, fontSize, color,
+    bold: textState.bold, italic: textState.italic,
+    x: state.canvasW/2 - w/2, y: state.canvasH/2 - h/2,
+    w, h, rotation: 0, flipX: false, flipY: false
+  };
+  state.layers.push(layer);
+  renderAllLayers();
+  selectLayer(layer.id);
+});
+
+/* ============================================================
    PROPERTIES PANEL (bên phải)
    ============================================================ */
 function renderPropsPanel(){
   const layer = getLayer(state.selectedId);
   if(!layer){
-    els.propsBody.innerHTML = `<div class="empty-props">Bấm chọn 1 ảnh trên canvas<br/>để chỉnh vị trí, kích thước, góc xoay.</div>`;
+    els.propsBody.innerHTML = `<div class="empty-props"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9l6 6"/><path d="M15 9l-6 6"/></svg>Bấm chọn 1 ảnh hoặc chữ trên canvas<br/>để chỉnh thuộc tính.</div>`;
     return;
   }
+  const isText = layer.type === 'text';
+  const textProps = isText ? `
+    <div class="prop-divider"></div>
+    <div class="prop-row"><label>Nội dung</label><input type="text" id="propText" style="width:auto;flex:1" value="${layer.text.replace(/"/g,'&quot;')}"/></div>
+    <div class="prop-row"><label>Cỡ chữ</label><input type="number" id="propFontSize" min="8" max="800" style="width:70px" value="${layer.fontSize}"/></div>
+    <div class="prop-row"><label>Màu chữ</label><input type="color" id="propColor" value="${layer.color}"/></div>
+    <div class="toggle-row" style="margin-bottom:9px">
+      <button class="toggle-btn ${layer.bold?'active':''}" id="propBold"><b>B</b></button>
+      <button class="toggle-btn ${layer.italic?'active':''}" id="propItalic"><i>I</i></button>
+    </div>
+  ` : '';
   els.propsBody.innerHTML = `
     <div class="prop-row"><label>X (px)</label><input type="number" id="propX" step="1"/></div>
     <div class="prop-row"><label>Y (px)</label><input type="number" id="propY" step="1"/></div>
     <div class="prop-row"><label>Rộng (px)</label><input type="number" id="propW" step="1"/></div>
     <div class="prop-row"><label>Cao (px)</label><input type="number" id="propH" step="1"/></div>
     <div class="prop-row"><label>Góc xoay (°)</label><input type="number" id="propR" step="1"/></div>
+    ${textProps}
     <div class="prop-divider"></div>
+    <div class="flip-row">
+      <button class="btn btn-sm ${layer.flipX?'btn-accent':''}" id="btnFlipH">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 9l4 3-4 3"/><path d="M21 9l-4 3 4 3"/></svg>
+        Lật ngang
+      </button>
+      <button class="btn btn-sm ${layer.flipY?'btn-accent':''}" id="btnFlipV">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M9 3l3 4 3-4"/><path d="M9 21l3-4 3 4"/></svg>
+        Lật dọc
+      </button>
+    </div>
     <div class="prop-actions">
       <button class="btn btn-sm" id="btnCenter"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>Đặt giữa</button>
       <button class="btn btn-sm" id="btnDup"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="1.5"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Nhân bản</button>
       <button class="btn btn-sm" id="btnFront"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="13" height="13" rx="1.5"/><path d="M3 14V5a2 2 0 0 1 2-2h9"/></svg>Lên trên</button>
       <button class="btn btn-sm" id="btnBack"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="13" height="13" rx="1.5"/><path d="M21 10v9a2 2 0 0 1-2 2h-9"/></svg>Xuống dưới</button>
-      <button class="btn btn-sm btn-danger" id="btnDel" style="flex:1 1 100%;"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Xoá ảnh này</button>
+      <button class="btn btn-sm btn-danger" id="btnDel" style="flex:1 1 100%;"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Xoá ${isText?'chữ này':'ảnh này'}</button>
     </div>
   `;
   syncPropsInputs(layer);
@@ -971,16 +1161,30 @@ function renderPropsPanel(){
   document.getElementById('propW').addEventListener('input', e=>{
     const w=Math.max(16,parseFloat(e.target.value)||layer.w);
     const cx=layer.x+layer.w/2, cy=layer.y+layer.h/2;
-    layer.w=w; layer.h=w/ratio; layer.x=cx-layer.w/2; layer.y=cy-layer.h/2;
+    layer.w=w; if(!isText){ layer.h=w/ratio; } layer.x=cx-layer.w/2; layer.y=cy-layer.h/2;
     renderLayer(layer); updateSelectionOverlayPosition(); syncPropsInputs(layer);
   });
   document.getElementById('propH').addEventListener('input', e=>{
     const h=Math.max(16,parseFloat(e.target.value)||layer.h);
     const cx=layer.x+layer.w/2, cy=layer.y+layer.h/2;
-    layer.h=h; layer.w=h*ratio; layer.x=cx-layer.w/2; layer.y=cy-layer.h/2;
+    layer.h=h; if(!isText){ layer.w=h*ratio; } layer.x=cx-layer.w/2; layer.y=cy-layer.h/2;
     renderLayer(layer); updateSelectionOverlayPosition(); syncPropsInputs(layer);
   });
   document.getElementById('propR').addEventListener('input', e=>{ layer.rotation=parseFloat(e.target.value)||0; renderLayer(layer); updateSelectionOverlayPosition(); });
+
+  /* Text-only controls */
+  if(isText){
+    document.getElementById('propText').addEventListener('input', e=>{ layer.text=e.target.value; renderLayer(layer); });
+    document.getElementById('propFontSize').addEventListener('input', e=>{ layer.fontSize=Math.max(8,parseInt(e.target.value,10)||layer.fontSize); renderLayer(layer); });
+    document.getElementById('propColor').addEventListener('input', e=>{ layer.color=e.target.value; renderLayer(layer); });
+    document.getElementById('propBold').addEventListener('click', ()=>{ layer.bold=!layer.bold; renderPropsPanel(); });
+    document.getElementById('propItalic').addEventListener('click', ()=>{ layer.italic=!layer.italic; renderPropsPanel(); });
+  }
+
+  /* Flip */
+  document.getElementById('btnFlipH').addEventListener('click', ()=>{ layer.flipX=!layer.flipX; renderLayer(layer); renderPropsPanel(); });
+  document.getElementById('btnFlipV').addEventListener('click', ()=>{ layer.flipY=!layer.flipY; renderLayer(layer); renderPropsPanel(); });
+
   document.getElementById('btnCenter').addEventListener('click', ()=>{
     layer.x = state.canvasW/2 - layer.w/2; layer.y = state.canvasH/2 - layer.h/2;
     renderLayer(layer); updateSelectionOverlayPosition(); syncPropsInputs(layer);
@@ -1024,7 +1228,23 @@ function exportPoster(format){
       ctx.save();
       ctx.translate(layer.x+layer.w/2, layer.y+layer.h/2);
       ctx.rotate(layer.rotation*Math.PI/180);
-      ctx.drawImage(layer.img, -layer.w/2, -layer.h/2, layer.w, layer.h);
+      ctx.scale(layer.flipX ? -1 : 1, layer.flipY ? -1 : 1);
+      if(layer.type === 'text'){
+        const fStyle = `${layer.italic?'italic ':''} ${layer.bold?'bold ':''} ${layer.fontSize}px ${layer.fontFamily}`;
+        ctx.font = fStyle;
+        ctx.fillStyle = layer.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        /* vẽ từng dòng nếu text có \n */
+        const lines = layer.text.split('\n');
+        const lh = layer.fontSize * 1.35;
+        const totalH = lh * lines.length;
+        lines.forEach((line, i)=>{
+          ctx.fillText(line, 0, -totalH/2 + lh*(i+0.5));
+        });
+      } else {
+        ctx.drawImage(layer.img, -layer.w/2, -layer.h/2, layer.w, layer.h);
+      }
       ctx.restore();
     }
     const mime = format==='jpeg' ? 'image/jpeg' : 'image/png';
